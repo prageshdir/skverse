@@ -250,7 +250,7 @@ export default function AdminPage() {
                         color: "var(--text-primary)",
                         fontSize: 12,
                       }}
-                      formatter={(v: number) => [formatNumber(v), "Learners"]}
+                      formatter={(v) => [typeof v === "number" ? formatNumber(v) : String(v), "Learners"]}
                     />
                     <Area
                       type="monotone"
