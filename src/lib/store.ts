@@ -1,11 +1,21 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { getMe, clearTokens, saveToken, type UserProfile } from "./api";
+import { supabase } from "./supabase";
+import type { User } from "@supabase/supabase-js";
 
-// ─── Module-level state ───────────────────────────────────────────────────────
+export interface AppUser {
+  id: string;
+  email: string;
+  name: string;
+  avatar_url?: string;
+  role: string;
+  xp: number;
+  streak: number;
+  communities: string[];
+}
 
-let _user: UserProfile | null = null;
+let _user: AppUser | null = null;
 let _loading = true;
 const _listeners = new Set<() => void>();
 
@@ -13,23 +23,26 @@ function notify() {
   _listeners.forEach((fn) => fn());
 }
 
-// ─── Public setters ───────────────────────────────────────────────────────────
+async function loadProfile(supaUser: User) {
+  const { data } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", supaUser.id)
+    .single();
 
-export function setAuth(token: string, refresh: string, user: UserProfile) {
-  saveToken(token, refresh);
-  _user = user;
-  _loading = false;
-  notify();
+  if (data) {
+    _user = {
+      id: data.id,
+      email: data.email,
+      name: data.name,
+      avatar_url: data.avatar_url,
+      role: data.role,
+      xp: data.xp ?? 0,
+      streak: data.streak ?? 0,
+      communities: data.communities ?? [],
+    };
+  }
 }
-
-export function logout() {
-  clearTokens();
-  _user = null;
-  _loading = false;
-  notify();
-}
-
-// ─── Bootstrap (runs once per page load) ─────────────────────────────────────
 
 let _bootstrapped = false;
 
@@ -37,35 +50,55 @@ async function bootstrap() {
   if (_bootstrapped) return;
   _bootstrapped = true;
 
-  if (typeof window === "undefined") {
-    _loading = false;
-    notify();
-    return;
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.user) {
+    await loadProfile(session.user);
   }
+  _loading = false;
+  notify();
 
-  const token = localStorage.getItem("sv_token");
-  if (!token) {
+  supabase.auth.onAuthStateChange(async (_event, session) => {
+    if (session?.user) {
+      await loadProfile(session.user);
+    } else {
+      _user = null;
+    }
     _loading = false;
     notify();
-    return;
-  }
-
-  try {
-    const user = await getMe();
-    _user = user;
-  } catch {
-    clearTokens();
-    _user = null;
-  } finally {
-    _loading = false;
-    notify();
-  }
+  });
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+export async function signInWithSupabase(email: string, password: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) throw new Error(error.message);
+  if (data.user) await loadProfile(data.user);
+  _loading = false;
+  notify();
+  return data;
+}
+
+export async function signUpWithSupabase(email: string, password: string, name: string) {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password,
+    options: { data: { name } },
+  });
+  if (error) throw new Error(error.message);
+  if (data.user) await loadProfile(data.user);
+  _loading = false;
+  notify();
+  return data;
+}
+
+export function logout() {
+  supabase.auth.signOut();
+  _user = null;
+  _loading = false;
+  notify();
+}
 
 export interface AuthState {
-  user: UserProfile | null;
+  user: AppUser | null;
   loading: boolean;
   isAuthenticated: boolean;
   logout: () => void;
@@ -77,11 +110,8 @@ export function useAuth(): AuthState {
   useEffect(() => {
     const handler = () => rerender((n) => n + 1);
     _listeners.add(handler);
-    // Kick off bootstrap the first time a component mounts
     bootstrap();
-    return () => {
-      _listeners.delete(handler);
-    };
+    return () => { _listeners.delete(handler); };
   }, []);
 
   const handleLogout = useCallback(() => logout(), []);

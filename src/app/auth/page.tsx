@@ -13,8 +13,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { signin, signup } from "@/lib/api";
-import { setAuth } from "@/lib/store";
+import { signInWithSupabase, signUpWithSupabase } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { COMMUNITIES } from "@/lib/communities";
 
@@ -157,13 +156,11 @@ function AuthForm() {
     setError("");
     setLoading(true);
     try {
-      let res;
       if (mode === "signup") {
-        res = await signup(email, password, name);
+        await signUpWithSupabase(email, password, name);
       } else {
-        res = await signin(email, password);
+        await signInWithSupabase(email, password);
       }
-      setAuth(res.token, res.refresh_token, res.user);
       router.push(mode === "signup" ? "/onboarding" : "/home");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");

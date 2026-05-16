@@ -167,9 +167,9 @@ export default function HomePage() {
               Ready to continue your journey today?
             </p>
           </div>
-          {user?.avatar ? (
+          {user?.avatar_url ? (
             <img
-              src={user.avatar}
+              src={user.avatar_url}
               alt={user.name}
               className="h-12 w-12 rounded-full object-cover border-2 border-[var(--border)] flex-shrink-0"
             />
