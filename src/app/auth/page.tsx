@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { signInWithSupabase, signUpWithSupabase } from "@/lib/store";
+import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { COMMUNITIES } from "@/lib/communities";
 
@@ -137,7 +138,7 @@ function AuthForm() {
   const searchParams = useSearchParams();
   const defaultMode = searchParams.get("mode") === "signup" ? "signup" : "signin";
 
-  const [mode, setMode] = useState<"signin" | "signup">(defaultMode);
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">(defaultMode);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -145,10 +146,14 @@ function AuthForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showDemo, setShowDemo] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   const DEMO_ACCOUNTS = [
-    { label: "Learner", email: "learner@sikkimverse.com", password: "learn" },
-    { label: "Director", email: "dir@emeyc.com", password: "platform" },
+    { label: "Superadmin",        email: "admin@sikkimverse.com",       password: "Admin@12345"   },
+    { label: "Community Admin",   email: "karma@bhutia.org",            password: "Bhutia@12345"  },
+    { label: "Community Manager", email: "manager@sikkimverse.com",     password: "Manager@12345" },
+    { label: "Contributor",       email: "contributor@sikkimverse.com", password: "Contrib@12345" },
+    { label: "Learner",           email: "learner@sikkimverse.com",     password: "Learn@12345"   },
   ];
 
   async function handleSubmit(e: React.FormEvent) {
@@ -156,12 +161,19 @@ function AuthForm() {
     setError("");
     setLoading(true);
     try {
-      if (mode === "signup") {
+      if (mode === "forgot") {
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/auth/reset-password`,
+        });
+        if (resetError) throw new Error(resetError.message);
+        setResetSent(true);
+      } else if (mode === "signup") {
         await signUpWithSupabase(email, password, name);
+        router.push("/onboarding");
       } else {
         await signInWithSupabase(email, password);
+        router.push("/home");
       }
-      router.push(mode === "signup" ? "/onboarding" : "/home");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -187,22 +199,24 @@ function AuthForm() {
       </div>
 
       {/* Mode tabs */}
-      <div className="flex rounded-2xl bg-[var(--surface-raised)] border border-[var(--border)] p-1 mb-8">
-        {(["signin", "signup"] as const).map((m) => (
-          <button
-            key={m}
-            onClick={() => { setMode(m); setError(""); }}
-            className={cn(
-              "flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
-              mode === m
-                ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-sm"
-                : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
-            )}
-          >
-            {m === "signin" ? "Sign In" : "Create Account"}
-          </button>
-        ))}
-      </div>
+      {mode !== "forgot" && (
+        <div className="flex rounded-2xl bg-[var(--surface-raised)] border border-[var(--border)] p-1 mb-8">
+          {(["signin", "signup"] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => { setMode(m); setError(""); setResetSent(false); }}
+              className={cn(
+                "flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200",
+                mode === m
+                  ? "bg-[var(--surface)] text-[var(--text-primary)] shadow-sm"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-secondary)]"
+              )}
+            >
+              {m === "signin" ? "Sign In" : "Create Account"}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Heading */}
       <AnimatePresence mode="wait">
@@ -214,19 +228,40 @@ function AuthForm() {
           transition={{ duration: 0.2 }}
           className="mb-6"
         >
+          {mode === "forgot" && (
+            <button
+              onClick={() => { setMode("signin"); setError(""); setResetSent(false); }}
+              className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] mb-3 flex items-center gap-1"
+            >
+              ← Back to sign in
+            </button>
+          )}
           <h2 className="text-2xl font-bold text-[var(--text-primary)]">
-            {mode === "signin" ? "Welcome back" : "Join Sikkimverse"}
+            {mode === "signin" ? "Welcome back" : mode === "signup" ? "Join Sikkimverse" : "Reset password"}
           </h2>
           <p className="text-[var(--text-muted)] text-sm mt-1">
             {mode === "signin"
               ? "Sign in to continue your learning journey."
-              : "Start preserving and learning Himalayan languages."}
+              : mode === "signup"
+              ? "Start preserving and learning Himalayan languages."
+              : "Enter your email and we'll send a reset link."}
           </p>
         </motion.div>
       </AnimatePresence>
 
+      {/* Forgot password — reset sent confirmation */}
+      {mode === "forgot" && resetSent && (
+        <div className="rounded-2xl bg-green-500/10 border border-green-500/20 p-5 mb-6 text-center">
+          <div className="text-2xl mb-2">📧</div>
+          <p className="text-green-400 font-medium text-sm">Check your inbox</p>
+          <p className="text-[var(--text-muted)] text-xs mt-1">
+            We sent a password reset link to <strong>{email}</strong>
+          </p>
+        </div>
+      )}
+
       {/* Social auth */}
-      <div className="flex gap-3 mb-5">
+      {mode !== "forgot" && <div className="flex gap-3 mb-5">
         <Link
           href="/auth/oauth/google"
           className={cn(
@@ -268,14 +303,16 @@ function AuthForm() {
           </svg>
           GitHub
         </Link>
-      </div>
+      </div>}
 
       {/* Divider */}
-      <div className="flex items-center gap-3 mb-5">
-        <div className="flex-1 h-px bg-[var(--border)]" />
-        <span className="text-[var(--text-muted)] text-xs">or continue with email</span>
-        <div className="flex-1 h-px bg-[var(--border)]" />
-      </div>
+      {mode !== "forgot" && (
+        <div className="flex items-center gap-3 mb-5">
+          <div className="flex-1 h-px bg-[var(--border)]" />
+          <span className="text-[var(--text-muted)] text-xs">or continue with email</span>
+          <div className="flex-1 h-px bg-[var(--border)]" />
+        </div>
+      )}
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -381,18 +418,31 @@ function AuthForm() {
           )}
         </AnimatePresence>
 
+        {mode === "signin" && (
+          <div className="flex justify-end -mt-1">
+            <button
+              type="button"
+              onClick={() => { setMode("forgot"); setError(""); setResetSent(false); }}
+              className="text-xs text-[var(--text-muted)] hover:text-[var(--brand-primary)] transition-colors"
+            >
+              Forgot password?
+            </button>
+          </div>
+        )}
+
         <Button
           type="submit"
           size="lg"
           loading={loading}
+          disabled={mode === "forgot" && resetSent}
           className="w-full bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-secondary)] text-white rounded-xl hover:brightness-110"
         >
-          {mode === "signin" ? "Sign In" : "Create Account"}
+          {mode === "signin" ? "Sign In" : mode === "signup" ? "Create Account" : "Send reset link"}
         </Button>
       </form>
 
       {/* Demo accounts */}
-      <div className="mt-6 rounded-2xl border border-[var(--border)] overflow-hidden">
+      {mode !== "forgot" && <div className="mt-6 rounded-2xl border border-[var(--border)] overflow-hidden">
         <button
           onClick={() => setShowDemo((v) => !v)}
           className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] transition-colors"
@@ -435,7 +485,7 @@ function AuthForm() {
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </div>}
 
       <p className="text-center text-xs text-[var(--text-muted)] mt-6">
         By continuing you agree to our{" "}
