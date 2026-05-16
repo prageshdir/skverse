@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Progress } from "@/components/ui/Progress";
 import { COMMUNITIES } from "@/lib/communities";
+import { useAuth } from "@/lib/store";
+import { useRouter } from "next/navigation";
+import { signout } from "@/lib/api";
 import {
   Settings, Edit, Flame, Zap, Trophy, BookOpen, Mic, PenTool,
   Globe, Star, Award, ChevronRight, LogOut
@@ -37,6 +40,15 @@ const LEARNING_LANGUAGES = [
 ];
 
 export default function ProfilePage() {
+  const { user, logout } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try { await signout(); } catch {}
+    logout();
+    router.push("/");
+  };
+
   return (
     <div className="min-h-screen pt-16 pb-24 bg-[var(--background)]">
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">

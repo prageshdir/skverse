@@ -1,39 +1,56 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, Suspense } from "react";
+import { useState, Suspense, useRef } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { COMMUNITIES } from "@/lib/communities";
+import { signin, signup, saveToken } from "@/lib/api";
+import { setAuth } from "@/lib/store";
 import {
-  Eye, EyeOff, Mail, Lock, User, ArrowRight, CheckCircle2
+  Eye, EyeOff, Mail, Lock, User, ArrowRight, CheckCircle2, AlertCircle
 } from "lucide-react";
 
 const BENEFITS = [
-  "7-day free trial, no credit card needed",
-  "Access all 6 community languages",
-  "Learn at your own pace",
-  "Earn XP and track progress",
+  "Join 10 founding communities of Sikkim",
+  "Learn language, script & pronunciation",
+  "Earn XP, badges and streaks",
+  "Contribute to cultural preservation",
 ];
 
 function AuthPageInner() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const defaultMode = searchParams.get("mode") === "signup" ? "signup" : "login";
   const [mode, setMode] = useState<"login" | "signup">(defaultMode);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1);
+  const [error, setError] = useState<string | null>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1500));
-    setLoading(false);
-    if (mode === "signup") {
-      window.location.href = "/onboarding";
-    } else {
-      window.location.href = "/home";
+    const email = emailRef.current?.value ?? "";
+    const password = passwordRef.current?.value ?? "";
+    const name = nameRef.current?.value ?? "";
+    try {
+      let res;
+      if (mode === "signup") {
+        res = await signup(email, password, name);
+      } else {
+        res = await signin(email, password);
+      }
+      setAuth(res.token, res.refresh_token, res.user);
+      router.push(mode === "signup" ? "/onboarding" : "/home");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Authentication failed";
+      setError(msg);
+      setLoading(false);
     }
   };
 
@@ -155,12 +172,21 @@ function AuthPageInner() {
 
               {/* Form */}
               <form onSubmit={handleSubmit} className="space-y-4">
+                {error && (
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-sm text-red-500">
+                    <AlertCircle size={14} className="shrink-0" />
+                    {error}
+                  </div>
+                )}
+
                 {mode === "signup" && (
                   <div className="relative">
                     <User size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                     <input
+                      ref={nameRef}
                       type="text"
                       placeholder="Full name"
+                      required
                       className="w-full h-12 pl-10 pr-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--brand-primary)] transition-colors"
                     />
                   </div>
@@ -169,8 +195,10 @@ function AuthPageInner() {
                 <div className="relative">
                   <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                   <input
+                    ref={emailRef}
                     type="email"
                     placeholder="Email address"
+                    required
                     className="w-full h-12 pl-10 pr-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--brand-primary)] transition-colors"
                   />
                 </div>
@@ -178,8 +206,11 @@ function AuthPageInner() {
                 <div className="relative">
                   <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                   <input
+                    ref={passwordRef}
                     type={showPassword ? "text" : "password"}
                     placeholder="Password"
+                    required
+                    minLength={6}
                     className="w-full h-12 pl-10 pr-12 rounded-xl border border-[var(--border)] bg-[var(--surface)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--brand-primary)] transition-colors"
                   />
                   <button

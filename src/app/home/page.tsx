@@ -7,6 +7,9 @@ import { Badge } from "@/components/ui/Badge";
 import { Progress } from "@/components/ui/Progress";
 import { Card, CardContent } from "@/components/ui/Card";
 import { COMMUNITIES } from "@/lib/communities";
+import { useAuth } from "@/lib/store";
+import { getMyStreak } from "@/lib/api";
+import { useEffect, useState } from "react";
 import { Flame, Zap, BookOpen, ArrowRight, Play, Star, Trophy, Target, Calendar } from "lucide-react";
 
 const CONTINUE_LESSON = {
@@ -31,9 +34,16 @@ const DAILY_TASKS = [
 ];
 
 export default function HomePage() {
-  const todayXP = 35;
+  const { user } = useAuth();
+  const [streak, setStreak] = useState(7);
+  const todayXP = user?.xp ? Math.min(user.xp % 100, 50) : 35;
   const dailyGoal = 50;
-  const streak = 7;
+
+  useEffect(() => {
+    getMyStreak()
+      .then((s) => setStreak(s.current))
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="pt-16 pb-24 min-h-screen bg-[var(--background)]">
@@ -46,7 +56,7 @@ export default function HomePage() {
           transition={{ duration: 0.5 }}
         >
           <h1 className="text-2xl font-bold text-[var(--text-primary)]">
-            Namaste, Priya 👋
+            Namaste{user ? `, ${user.name.split(" ")[0]}` : ""} 👋
           </h1>
           <p className="text-[var(--text-muted)] text-sm mt-1">
             You&apos;re on a {streak}-day streak! Keep it going.

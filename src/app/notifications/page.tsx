@@ -1,9 +1,10 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { getNotifications, markAllNotificationsRead } from "@/lib/api";
 import { Bell, Zap, BookOpen, Users, CheckCircle2, Flame, Gift, Mic, Check } from "lucide-react";
 
 const NOTIFICATIONS = [
@@ -99,8 +100,30 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState(NOTIFICATIONS);
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const markAllRead = () =>
+  useEffect(() => {
+    getNotifications()
+      .then((data) => {
+        const mapped = data.map((n) => ({
+          id: parseInt(n.id) || Math.random(),
+          type: n.type,
+          icon: Bell,
+          iconBg: "bg-blue-500/10",
+          iconColor: "text-blue-500",
+          title: n.title,
+          body: n.body,
+          time: new Date(n.created_at).toLocaleDateString(),
+          read: n.read,
+          xp: null as null,
+        }));
+        if (mapped.length > 0) setNotifications(mapped as typeof NOTIFICATIONS);
+      })
+      .catch(() => {});
+  }, []);
+
+  const markAllRead = async () => {
+    try { await markAllNotificationsRead(); } catch {}
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+  };
 
   const markRead = (id: number) =>
     setNotifications((prev) =>

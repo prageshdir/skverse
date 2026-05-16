@@ -72,6 +72,8 @@ export default function TutorPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
+  const [sessionId, setSessionId] = useState<string | null>(null);
+
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
     const userMsg: Message = {
@@ -84,18 +86,35 @@ export default function TutorPage() {
     setInput("");
     setIsTyping(true);
 
-    await new Promise((r) => setTimeout(r, 1200 + Math.random() * 800));
-
-    const response = getResponse(text);
-    const aiMsg: Message = {
-      id: messages.length + 2,
-      role: "ai",
-      text: response.text,
-      timestamp: new Date(),
-      suggestions: response.suggestions,
-    };
-    setMessages((prev) => [...prev, aiMsg]);
-    setIsTyping(false);
+    try {
+      const { createTutorSession, sendTutorMessage } = await import("@/lib/api");
+      let sid = sessionId;
+      if (!sid) {
+        const session = await createTutorSession("bhutia", "Sikkimese");
+        sid = session.id;
+        setSessionId(sid);
+      }
+      const reply = await sendTutorMessage(sid, text.trim());
+      const aiMsg: Message = {
+        id: messages.length + 2,
+        role: "ai",
+        text: reply.content,
+        timestamp: new Date(reply.created_at),
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    } catch {
+      const response = getResponse(text);
+      const aiMsg: Message = {
+        id: messages.length + 2,
+        role: "ai",
+        text: response.text,
+        timestamp: new Date(),
+        suggestions: response.suggestions,
+      };
+      setMessages((prev) => [...prev, aiMsg]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

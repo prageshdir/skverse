@@ -1,12 +1,13 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { COMMUNITIES } from "@/lib/communities";
-import { Search, Mic, BookOpen, Image, PenTool, Play, Filter } from "lucide-react";
+import { getArchive, type ArchiveItem } from "@/lib/api";
+import { Search, Mic, BookOpen, Image, PenTool, Play, Filter, Loader2 } from "lucide-react";
 
 const ARCHIVE_ITEMS = [
   { id: 1, type: "audio", title: "Morning Blessing Song", community: "bhutia", contributor: "Dawa B.", duration: "2:34", featured: true },
@@ -33,13 +34,27 @@ export default function ArchivePage() {
   const [search, setSearch] = useState("");
   const [selectedType, setSelectedType] = useState("All");
   const [selectedCommunity, setSelectedCommunity] = useState("All");
+  const [apiItems, setApiItems] = useState<ArchiveItem[] | null>(null);
+  const [apiLoading, setApiLoading] = useState(true);
 
   const TYPES = ["All", "Audio", "Stories", "Scripts", "Images"];
 
-  const filtered = ARCHIVE_ITEMS.filter((item) => {
-    const matchSearch = item.title.toLowerCase().includes(search.toLowerCase());
-    const matchType = selectedType === "All" || item.type === selectedType.toLowerCase().replace(/s$/, "");
-    const matchCommunity = selectedCommunity === "All" || item.community === selectedCommunity;
+  useEffect(() => {
+    getArchive()
+      .then((data) => setApiItems(data))
+      .catch(() => setApiItems(null))
+      .finally(() => setApiLoading(false));
+  }, []);
+
+  const sourceItems = apiItems ?? ARCHIVE_ITEMS as unknown as ArchiveItem[];
+
+  const filtered = sourceItems.filter((item) => {
+    const title = "title" in item ? item.title : "";
+    const type = "type" in item ? item.type : "";
+    const community = "community_slug" in item ? item.community_slug : (item as unknown as { community: string }).community;
+    const matchSearch = title.toLowerCase().includes(search.toLowerCase());
+    const matchType = selectedType === "All" || type === selectedType.toLowerCase().replace(/s$/, "").replace("storie", "story");
+    const matchCommunity = selectedCommunity === "All" || community === selectedCommunity;
     return matchSearch && matchType && matchCommunity;
   });
 
@@ -104,7 +119,8 @@ export default function ArchivePage() {
         {/* Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((item, i) => {
-            const community = COMMUNITIES.find((c) => c.id === item.community);
+            const communitySlug = "community_slug" in item ? item.community_slug : (item as unknown as { community: string }).community;
+            const community = COMMUNITIES.find((c) => c.id === communitySlug);
             const Icon = TYPE_ICONS[item.type] || BookOpen;
             const colorClass = TYPE_COLORS[item.type] || "text-gray-500 bg-gray-500/10";
             const [textColor, bgColor] = colorClass.split(" ");
@@ -128,14 +144,14 @@ export default function ArchivePage() {
                     <div className={`relative w-12 h-12 rounded-2xl ${bgColor} flex items-center justify-center`}>
                       <Icon size={22} className={textColor} />
                     </div>
-                    {item.featured && (
+                    {("featured" in item && (item as unknown as { featured: boolean }).featured) && (
                       <div className="absolute top-2 right-2">
                         <Badge className="bg-[var(--brand-accent)]/90 text-[#1a1410] border-transparent text-[10px]">
                           Featured
                         </Badge>
                       </div>
                     )}
-                    {item.type === "audio" && (
+                    {(item.type as string) === "audio" && (
                       <button className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                         <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
                           <Play size={16} className="text-white ml-0.5" />
@@ -155,7 +171,7 @@ export default function ArchivePage() {
                          `${(item as any).images} photos`}
                       </span>
                     </div>
-                    <div className="mt-2 text-[10px] text-[var(--text-muted)]">by {item.contributor}</div>
+                    <div className="mt-2 text-[10px] text-[var(--text-muted)]">by {("contributor" in item ? (item as unknown as { contributor: string }).contributor : item.contributor)}</div>
                   </div>
                 </div>
               </motion.div>

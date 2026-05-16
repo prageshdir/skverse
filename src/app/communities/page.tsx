@@ -36,7 +36,7 @@ export default function CommunitiesPage() {
           >
             <h1 className="text-4xl font-bold text-white mb-3">Explore Communities</h1>
             <p className="text-white/70 text-lg">
-              Six living cultures. Six worlds to discover. Each with its own language, script, and soul.
+              Ten living cultures. Ten worlds to discover. Each with its own language, script, and soul.
             </p>
           </motion.div>
         </div>
@@ -77,9 +77,9 @@ export default function CommunitiesPage() {
         {/* Stats bar */}
         <div className="flex flex-wrap gap-6 mb-8 p-4 bg-[var(--surface)] rounded-2xl border border-[var(--border)]">
           {[
-            { icon: Users, label: "Total Learners", value: "52K+" },
-            { icon: BookOpen, label: "Total Lessons", value: "270+" },
-            { icon: Mic, label: "Audio Stories", value: "1,200+" },
+            { icon: Users, label: "Total Learners", value: formatNumber(COMMUNITIES.reduce((s, c) => s + c.learners, 0)) + "+" },
+            { icon: BookOpen, label: "Total Lessons", value: COMMUNITIES.reduce((s, c) => s + c.lessons, 0) + "+" },
+            { icon: Mic, label: "Communities", value: COMMUNITIES.length.toString() },
           ].map(({ icon: Icon, label, value }) => (
             <div key={label} className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-[var(--surface-raised)] flex items-center justify-center">

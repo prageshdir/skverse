@@ -1,12 +1,19 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Progress } from "@/components/ui/Progress";
 import { COMMUNITIES } from "@/lib/communities";
 import { formatNumber as fmt } from "@/lib/utils";
+import {
+  getAdminKPIs, getAdminLearningSeries, approveContribution, rejectContribution,
+  type KPIs, type LearningSeries
+} from "@/lib/api";
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+} from "recharts";
 import {
   Users, BookOpen, Mic, TrendingUp, DollarSign, Shield,
   CheckCircle2, Clock, XCircle, Globe, BarChart2, Settings,
@@ -35,6 +42,26 @@ const MAX_REV = Math.max(...REVENUE_MONTHS.map((r) => r.revenue));
 export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("Overview");
   const [searchQuery, setSearchQuery] = useState("");
+  const [kpis, setKpis] = useState<KPIs | null>(null);
+  const [series, setSeries] = useState<LearningSeries[]>(REVENUE_MONTHS.map((m) => ({
+    date: m.month, learners: m.revenue / 1000, completions: m.revenue / 2000,
+  })));
+  const [pendingItems, setPendingItems] = useState(PENDING_ITEMS);
+
+  useEffect(() => {
+    getAdminKPIs().then(setKpis).catch(() => {});
+    getAdminLearningSeries().then(setSeries).catch(() => {});
+  }, []);
+
+  const handleApprove = async (id: string | number) => {
+    try { await approveContribution(String(id)); } catch {}
+    setPendingItems((prev) => prev.filter((p) => p.title !== id));
+  };
+
+  const handleReject = async (id: string | number) => {
+    try { await rejectContribution(String(id), "Rejected by admin"); } catch {}
+    setPendingItems((prev) => prev.filter((p) => p.title !== id));
+  };
 
   return (
     <div className="min-h-screen pt-16 pb-24 bg-[var(--background)]">
@@ -80,10 +107,10 @@ export default function AdminPage() {
             {/* KPI cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
-                { icon: Users, label: "Total Users", value: "52,480", change: "+18%", color: "text-blue-500", bg: "bg-blue-500/10" },
-                { icon: DollarSign, label: "MRR", value: "₹61K", change: "+12%", color: "text-green-500", bg: "bg-green-500/10" },
-                { icon: BookOpen, label: "Active Lessons", value: "270", change: "+6 new", color: "text-violet-500", bg: "bg-violet-500/10" },
-                { icon: Mic, label: "Archive Items", value: "1,248", change: "+42 this week", color: "text-amber-500", bg: "bg-amber-500/10" },
+                { icon: Users, label: "Total Users", value: kpis ? fmt(kpis.total_learners) : "52,480", change: "+18%", color: "text-blue-500", bg: "bg-blue-500/10" },
+                { icon: DollarSign, label: "MRR", value: kpis ? `₹${fmt(kpis.revenue_this_month)}` : "₹61K", change: "+12%", color: "text-green-500", bg: "bg-green-500/10" },
+                { icon: BookOpen, label: "Contributions", value: kpis ? fmt(kpis.total_contributions) : "270", change: `${kpis?.pending_contributions ?? 4} pending`, color: "text-violet-500", bg: "bg-violet-500/10" },
+                { icon: Mic, label: "AI Sessions", value: kpis ? fmt(kpis.ai_sessions_today) : "1,248", change: "today", color: "text-amber-500", bg: "bg-amber-500/10" },
               ].map(({ icon: Icon, label, value, change, color, bg }) => (
                 <motion.div
                   key={label}
@@ -103,33 +130,29 @@ export default function AdminPage() {
               ))}
             </div>
 
-            {/* Revenue chart */}
+            {/* Learning activity chart */}
             <div className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] p-5">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-bold text-[var(--text-primary)]">Monthly Revenue</h2>
-                <Badge variant="success">+12% MoM</Badge>
+                <h2 className="font-bold text-[var(--text-primary)]">Learning Activity</h2>
+                <Badge variant="success">Live Data</Badge>
               </div>
-              <div className="flex items-end gap-3 h-32">
-                {REVENUE_MONTHS.map((m) => (
-                  <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
-                    <span className="text-[10px] text-[var(--text-muted)]">
-                      {m.month === "Jun" ? <strong className="text-[var(--brand-primary)]">₹{(m.revenue/1000).toFixed(0)}K</strong> : ""}
-                    </span>
-                    <motion.div
-                      className="w-full rounded-t-lg"
-                      style={{ background: m.month === "Jun" ? "var(--brand-primary)" : "var(--brand-primary)" }}
-                      initial={{ height: 0 }}
-                      animate={{ height: `${(m.revenue / MAX_REV) * 96}px` }}
-                      transition={{ duration: 0.6, delay: 0.1 }}
-                    />
-                    <span className="text-[10px] text-[var(--text-muted)]">{m.month}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4 pt-3 border-t border-[var(--border)] flex items-center justify-between text-sm">
-                <span className="text-[var(--text-muted)]">Total this period</span>
-                <span className="font-bold text-[var(--text-primary)]">₹2,55,000</span>
-              </div>
+              <ResponsiveContainer width="100%" height={160}>
+                <AreaChart data={series} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="lgrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="var(--brand-primary)" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="var(--brand-primary)" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11, fill: "var(--text-muted)" }} />
+                  <YAxis tick={{ fontSize: 11, fill: "var(--text-muted)" }} />
+                  <Tooltip
+                    contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }}
+                  />
+                  <Area type="monotone" dataKey="learners" stroke="var(--brand-primary)" strokeWidth={2} fill="url(#lgrad)" />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
 
             {/* Two column: communities + pending */}
@@ -158,7 +181,7 @@ export default function AdminPage() {
                   <Badge variant="warning">{PENDING_ITEMS.length} items</Badge>
                 </div>
                 <div className="space-y-3">
-                  {PENDING_ITEMS.map((item, i) => (
+                  {pendingItems.map((item, i) => (
                     <div key={i} className="flex items-center gap-3 p-3 bg-[var(--surface-raised)] rounded-xl">
                       <Clock size={14} className="text-amber-500 shrink-0" />
                       <div className="flex-1 min-w-0">
@@ -166,10 +189,16 @@ export default function AdminPage() {
                         <div className="text-xs text-[var(--text-muted)]">{item.community} · {item.contributor} · {item.time}</div>
                       </div>
                       <div className="flex gap-1">
-                        <button className="w-7 h-7 rounded-lg bg-green-500/15 flex items-center justify-center hover:bg-green-500/25 transition-colors">
+                        <button
+                          onClick={() => handleApprove(item.title)}
+                          className="w-7 h-7 rounded-lg bg-green-500/15 flex items-center justify-center hover:bg-green-500/25 transition-colors"
+                        >
                           <CheckCircle2 size={14} className="text-green-500" />
                         </button>
-                        <button className="w-7 h-7 rounded-lg bg-red-500/15 flex items-center justify-center hover:bg-red-500/25 transition-colors">
+                        <button
+                          onClick={() => handleReject(item.title)}
+                          className="w-7 h-7 rounded-lg bg-red-500/15 flex items-center justify-center hover:bg-red-500/25 transition-colors"
+                        >
                           <XCircle size={14} className="text-red-500" />
                         </button>
                       </div>

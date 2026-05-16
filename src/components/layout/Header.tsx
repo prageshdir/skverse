@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "@/components/ui/Button";
-import { Search, Bell, User } from "lucide-react";
+import { Search, Bell, User, LogOut, Shield } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAuth } from "@/lib/store";
+import { signout } from "@/lib/api";
 
 const NAV_LINKS = [
   { href: "/communities", label: "Communities" },
@@ -17,7 +19,15 @@ const NAV_LINKS = [
 
 export function Header() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout, isAuthenticated } = useAuth();
   const isLanding = pathname === "/";
+
+  const handleLogout = async () => {
+    try { await signout(); } catch {}
+    logout();
+    router.push("/");
+  };
 
   return (
     <motion.header
@@ -33,7 +43,7 @@ export function Header() {
     >
       <div className="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group">
+        <Link href={isAuthenticated ? "/home" : "/"} className="flex items-center gap-2.5 group">
           <div className="w-8 h-8 rounded-xl gradient-brand flex items-center justify-center shadow-md">
             <span className="text-white font-bold text-sm">Sv</span>
           </div>
@@ -67,16 +77,43 @@ export function Header() {
               <Search size={18} />
             </button>
           </Link>
-          <Link href="/notifications" className="hidden md:flex">
-            <button className="relative h-9 w-9 rounded-xl flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] transition-colors">
-              <Bell size={18} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[var(--brand-primary)] rounded-full" />
-            </button>
-          </Link>
-          <ThemeToggle />
-          <Link href="/auth" className="hidden md:flex">
-            <Button size="sm">Get Started</Button>
-          </Link>
+
+          {isAuthenticated ? (
+            <>
+              <Link href="/notifications" className="hidden md:flex">
+                <button className="relative h-9 w-9 rounded-xl flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] transition-colors">
+                  <Bell size={18} />
+                  <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-[var(--brand-primary)] rounded-full" />
+                </button>
+              </Link>
+              {(user?.role === "superadmin" || user?.role === "community_admin") && (
+                <Link href="/admin" className="hidden md:flex">
+                  <button className="h-9 w-9 rounded-xl flex items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] transition-colors">
+                    <Shield size={18} />
+                  </button>
+                </Link>
+              )}
+              <Link href="/profile" className="hidden md:flex">
+                <button className="h-9 w-9 rounded-xl flex items-center justify-center bg-[var(--surface-raised)] text-[var(--text-primary)] text-xs font-bold">
+                  {user?.name?.[0]?.toUpperCase() ?? <User size={16} />}
+                </button>
+              </Link>
+              <ThemeToggle />
+              <button
+                onClick={handleLogout}
+                className="hidden md:flex h-9 w-9 rounded-xl items-center justify-center text-[var(--text-secondary)] hover:bg-[var(--surface-raised)] hover:text-[var(--text-primary)] transition-colors"
+              >
+                <LogOut size={16} />
+              </button>
+            </>
+          ) : (
+            <>
+              <ThemeToggle />
+              <Link href="/auth" className="hidden md:flex">
+                <Button size="sm">Get Started</Button>
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </motion.header>

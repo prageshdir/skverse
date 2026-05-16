@@ -84,12 +84,27 @@ export default function ContributePage() {
     if (f) setFile(f);
   };
 
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 2000));
-    setLoading(false);
-    setSubmitted(true);
+    setSubmitError(null);
+    try {
+      const { submitContribution } = await import("@/lib/api");
+      const form = new FormData();
+      form.append("type", selectedType ?? "audio");
+      form.append("community_slug", selectedCommunity);
+      form.append("title", title);
+      form.append("description", description);
+      if (file) form.append("file", file);
+      await submitContribution(form);
+      setSubmitted(true);
+    } catch {
+      setSubmitError("Submission failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (submitted) {

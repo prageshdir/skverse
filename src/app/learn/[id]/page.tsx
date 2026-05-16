@@ -256,11 +256,29 @@ export default function LearnPage() {
   const params = useParams();
   const community = getCommunity(params.id as string);
   const [lessonOpen, setLessonOpen] = useState(false);
+  const [units, setUnits] = useState(UNITS);
+
+  const handleLessonClose = async (xpEarned: number, unitId: number) => {
+    setLessonOpen(false);
+    if (xpEarned > 0) {
+      try {
+        const { completeUnit } = await import("@/lib/api");
+        await completeUnit(String(unitId));
+      } catch {}
+      setUnits((prev) =>
+        prev.map((u) =>
+          u.id === unitId
+            ? { ...u, lessons: u.lessons.map((l) => l.active ? { ...l, done: true, active: false } : l) }
+            : u
+        )
+      );
+    }
+  };
 
   if (!community) return null;
 
-  const totalDone = UNITS.flatMap(u => u.lessons).filter(l => l.done).length;
-  const totalLessons = UNITS.flatMap(u => u.lessons).length;
+  const totalDone = units.flatMap(u => u.lessons).filter(l => l.done).length;
+  const totalLessons = units.flatMap(u => u.lessons).length;
 
   return (
     <div className="min-h-screen pb-24" style={{ background: community.colors.bg }}>
@@ -295,7 +313,7 @@ export default function LearnPage() {
 
       {/* Units */}
       <div className="max-w-2xl mx-auto px-4 space-y-6">
-        {UNITS.map((unit, ui) => (
+        {units.map((unit, ui) => (
           <motion.div
             key={unit.id}
             initial={{ opacity: 0, y: 16 }}
