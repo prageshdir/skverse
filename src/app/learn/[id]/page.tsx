@@ -113,16 +113,16 @@ const UNITS: Unit[] = [
 
 // ─── Lesson type icons ────────────────────────────────────────────────────────
 
-function LessonIcon({ type, className }: { type: LessonType; className?: string }) {
+function LessonIcon({ type, className, style }: { type: LessonType; className?: string; style?: React.CSSProperties }) {
   switch (type) {
     case "lesson":
-      return <BookOpen className={className} />;
+      return <BookOpen className={className} style={style} />;
     case "audio":
-      return <Mic className={className} />;
+      return <Mic className={className} style={style} />;
     case "writing":
-      return <PenTool className={className} />;
+      return <PenTool className={className} style={style} />;
     case "ai":
-      return <Bot className={className} />;
+      return <Bot className={className} style={style} />;
   }
 }
 
@@ -174,13 +174,14 @@ function LessonModal({
 
   const q = QUIZ_QUESTIONS[step];
   const isCorrect = selected === q?.correct;
+  const lessonXp = lesson?.xp ?? 10;
 
   function handleSelect(idx: number) {
     if (answered) return;
     setSelected(idx);
     setAnswered(true);
-    if (idx === q.correct) {
-      setXpEarned((xp) => xp + Math.round(lesson.xp / 3));
+    if (idx === q?.correct) {
+      setXpEarned((xp) => xp + Math.round(lessonXp / 3));
     } else {
       setHearts((h) => Math.max(0, h - 1));
     }
@@ -193,7 +194,7 @@ function LessonModal({
       setAnswered(false);
     } else {
       setFinished(true);
-      onComplete(xpEarned + Math.round(lesson.xp / 3));
+      onComplete(xpEarned + Math.round(lessonXp / 3));
     }
   }
 
@@ -601,7 +602,7 @@ export default function LearnPage() {
         <LessonModal
           lesson={activeLesson}
           communityName={community.name}
-          communityColors={community.colors}
+          communityColors={{ ...community.colors, gradient: community.gradient }}
           onClose={() => setActiveLesson(null)}
           onComplete={handleLessonComplete}
         />
