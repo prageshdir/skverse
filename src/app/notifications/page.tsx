@@ -24,7 +24,7 @@ const STATIC_NOTIFICATIONS: Notification[] = [
     id: "n1",
     type: "streak",
     title: "Keep your streak alive! 🔥",
-    message: "You're on a 7-day streak. Don't break it — complete a lesson today!",
+    body: "You're on a 7-day streak. Don't break it — complete a lesson today!",
     read: false,
     created_at: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
   },
@@ -32,7 +32,7 @@ const STATIC_NOTIFICATIONS: Notification[] = [
     id: "n2",
     type: "lesson",
     title: "New lesson available",
-    message: "A new Bhutia grammar lesson has been added: Past Tense Essentials.",
+    body: "A new Bhutia grammar lesson has been added: Past Tense Essentials.",
     read: false,
     created_at: new Date(Date.now() - 1000 * 60 * 90).toISOString(),
   },
@@ -40,7 +40,7 @@ const STATIC_NOTIFICATIONS: Notification[] = [
     id: "n3",
     type: "xp",
     title: "XP milestone reached! ⭐",
-    message: "You've crossed 2,500 XP. You're now at Level 6 — keep it up!",
+    body: "You've crossed 2,500 XP. You're now at Level 6 — keep it up!",
     read: false,
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
   },
@@ -48,7 +48,7 @@ const STATIC_NOTIFICATIONS: Notification[] = [
     id: "n4",
     type: "contribution",
     title: "Your contribution was approved",
-    message: "\"Morning Greeting Phrases\" has been approved and added to the Lepcha archive.",
+    body: "\"Morning Greeting Phrases\" has been approved and added to the Lepcha archive.",
     read: true,
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
   },
@@ -56,7 +56,7 @@ const STATIC_NOTIFICATIONS: Notification[] = [
     id: "n5",
     type: "community",
     title: "Community update",
-    message: "The Limbu community has reached a new preservation milestone: 58%.",
+    body: "The Limbu community has reached a new preservation milestone: 58%.",
     read: true,
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
   },
@@ -64,7 +64,7 @@ const STATIC_NOTIFICATIONS: Notification[] = [
     id: "n6",
     type: "audio",
     title: "New audio content",
-    message: "24 new audio recordings have been added to the Sherpa archive.",
+    body: "24 new audio recordings have been added to the Sherpa archive.",
     read: true,
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 36).toISOString(),
   },
@@ -199,7 +199,7 @@ export default function NotificationsPage() {
                       )}>
                         {n.title}
                       </p>
-                      <p className="text-sm text-[var(--text-muted)] leading-relaxed">{n.message}</p>
+                      <p className="text-sm text-[var(--text-muted)] leading-relaxed">{n.body}</p>
                       <p className="text-xs text-[var(--text-muted)] mt-1.5">{timeAgo(n.created_at)}</p>
                     </div>
                   </motion.div>

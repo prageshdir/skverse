@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Mic, Bot } from "lucide-react";
-import { createTutorSession, sendTutorMessage } from "@/lib/api";
+import { createTutorSession, sendTutorMessage, saveTutorMessage } from "@/lib/api";
 import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 
@@ -159,11 +159,17 @@ export default function TutorPage() {
       }
 
       const reply = await sendTutorMessage(currentSessionId, text);
+      // sendTutorMessage saves the user message and returns a stub.
+      // Generate the AI response locally.
+      const local = getLocalResponse(text);
       const aiMsg: Message = {
-        id: reply.id,
+        id: reply.id || `a-${Date.now()}`,
         role: "assistant",
-        content: reply.content,
+        content: local.content,
+        suggestions: local.suggestions,
       };
+      // Save the AI response to DB (best-effort)
+      saveTutorMessage(currentSessionId, "assistant", local.content).catch(() => {});
       setMessages((prev) => [...prev, aiMsg]);
     } catch {
       // Fallback to local responses

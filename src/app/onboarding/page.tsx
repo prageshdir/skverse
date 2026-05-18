@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Progress } from "@/components/ui/Progress";
 import { COMMUNITIES, type CommunityId } from "@/lib/communities";
+import { updateMyCommunities } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -329,7 +330,7 @@ function StepReady({
 }: {
   communities: CommunityId[];
   goal: GoalId | null;
-  onStart: () => void;
+  onStart: () => void | Promise<void>;
 }) {
   const selectedCommunities = COMMUNITIES.filter((c) =>
     communities.includes(c.id)
@@ -491,7 +492,14 @@ export default function OnboardingPage() {
       <StepReady
         communities={selectedCommunities}
         goal={selectedGoal}
-        onStart={() => router.push("/home")}
+        onStart={async () => {
+          try {
+            await updateMyCommunities(selectedCommunities as string[]);
+          } catch {
+            /* best-effort */
+          }
+          router.push("/home");
+        }}
       />
     ),
   };
