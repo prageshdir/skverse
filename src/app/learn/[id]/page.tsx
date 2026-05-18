@@ -20,7 +20,7 @@ import {
   Trophy,
 } from "lucide-react";
 import { getCommunity } from "@/lib/communities";
-import { completeUnit } from "@/lib/api";
+import { completeUnit, getCommunityCourses, type Course } from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Progress } from "@/components/ui/Progress";
@@ -376,23 +376,65 @@ export default function LearnPage() {
   const id = params.id;
   const community = getCommunity(id as Parameters<typeof getCommunity>[0]);
 
-  const [units, setUnits] = useState<Unit[]>(UNITS);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [completedUnitIds, setCompletedUnitIds] = useState<string[]>([]);
+  const [loadingCourses, setLoadingCourses] = useState(true);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
   const [totalXp, setTotalXp] = useState(55);
-  const completedLessons = units.flatMap((u) => u.lessons).filter((l) => l.state === "done").length;
-  const totalLessons = units.flatMap((u) => u.lessons).length;
-  const overallProgress = Math.round((completedLessons / totalLessons) * 100);
 
-  async function handleLessonComplete(xp: number) {
+  useEffect(() => {
+    getCommunityCourses(id)
+      .then((data) => {
+        setCourses(data);
+        setLoadingCourses(false);
+      })
+      .catch(() => setLoadingCourses(false));
+  }, [id]);
+
+  const dbUnits: Unit[] = courses.flatMap((course) =>
+    (course.units ?? []).map((unit, idx) => ({
+      id: unit.id,
+      number: idx + 1,
+      title: unit.title,
+      subtitle: unit.subtitle ?? "",
+      state: completedUnitIds.includes(unit.id)
+        ? ("completed" as const)
+        : !unit.is_locked && idx === 0
+        ? ("in-progress" as const)
+        : unit.is_locked
+        ? ("locked" as const)
+        : ("in-progress" as const),
+      xp_reward: unit.xp_reward,
+      lessons: [],
+    }))
+  );
+
+  const displayUnits = dbUnits.length > 0 ? dbUnits : UNITS;
+
+  const completedLessons = displayUnits.flatMap((u) => u.lessons).filter((l) => l.state === "done").length;
+  const totalLessons = displayUnits.flatMap((u) => u.lessons).length;
+  const overallProgress = totalLessons > 0
+    ? Math.round((completedLessons / totalLessons) * 100)
+    : Math.round((displayUnits.filter((u) => u.state === "completed").length / Math.max(displayUnits.length, 1)) * 100);
+
+  async function handleLessonComplete(xp: number, unitId?: string) {
     setTotalXp((prev) => prev + xp);
     setActiveLesson(null);
 
-    // Check if we can mark a unit as complete
-    // For demo purposes, complete unit-2 if we just did the active lesson
-    try {
-      await completeUnit("unit-2");
-    } catch {
-      // ignore
+    if (unitId) {
+      try {
+        await completeUnit(unitId);
+        setCompletedUnitIds((prev) => [...prev, unitId]);
+      } catch {
+        // ignore
+      }
+    } else {
+      // fallback for static units
+      try {
+        await completeUnit("unit-2");
+      } catch {
+        // ignore
+      }
     }
   }
 
@@ -452,7 +494,7 @@ export default function LearnPage() {
 
       {/* Units */}
       <div className="mx-auto max-w-3xl px-4 py-8 space-y-4">
-        {units.map((unit, ui) => (
+        {displayUnits.map((unit, ui) => (
           <motion.div
             key={unit.id}
             initial={{ opacity: 0, y: 16 }}

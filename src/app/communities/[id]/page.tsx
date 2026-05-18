@@ -17,7 +17,25 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { getCommunity, COMMUNITIES } from "@/lib/communities";
-import { getCommunityOverview } from "@/lib/api";
+import {
+  getCommunityOverview,
+  getCommunityFestivals,
+  getCommunityFood,
+  getCommunityMusic,
+  getCommunityHeritage,
+  getCommunityTimeline,
+  getCommunityDialects,
+  getArchive,
+  getCommunityCourses,
+  type Festival,
+  type FoodItem,
+  type MusicItem,
+  type HeritageItem,
+  type TimelineEvent,
+  type Dialect,
+  type ArchiveItem,
+  type Course,
+} from "@/lib/api";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { Progress } from "@/components/ui/Progress";
@@ -30,13 +48,6 @@ const LEARNING_PATHS = [
   { id: "script", title: "Script Writing", icon: Pen, locked: false, lessons: 8 },
   { id: "pronunciation", title: "Pronunciation", icon: Mic, locked: true, lessons: 10 },
   { id: "ai", title: "AI Tutor", icon: Bot, locked: true, lessons: 6 },
-];
-
-const UNIT_CARDS = [
-  { unit: 1, title: "Getting Started", subtitle: "Basics & Greetings", locked: false, progress: 100 },
-  { unit: 2, title: "Greetings", subtitle: "Everyday expressions", locked: false, progress: 40 },
-  { unit: 3, title: "Family & People", subtitle: "Relationships & kinship", locked: true, progress: 0 },
-  { unit: 4, title: "Nature & Environment", subtitle: "Flora, fauna & land", locked: true, progress: 0 },
 ];
 
 export default function CommunityDetailPage() {
@@ -52,6 +63,15 @@ export default function CommunityDetailPage() {
     contributors?: number;
   } | null>(null);
 
+  const [festivals, setFestivals] = useState<Festival[]>([]);
+  const [food, setFood] = useState<FoodItem[]>([]);
+  const [music, setMusic] = useState<MusicItem[]>([]);
+  const [heritage, setHeritage] = useState<HeritageItem[]>([]);
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [dialects, setDialects] = useState<Dialect[]>([]);
+  const [archiveItems, setArchiveItems] = useState<ArchiveItem[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+
   useEffect(() => {
     getCommunityOverview(id)
       .then((data) => {
@@ -62,6 +82,17 @@ export default function CommunityDetailPage() {
       .catch(() => {
         // fallback to local data
       });
+
+    Promise.all([
+      getCommunityFestivals(id).then(setFestivals).catch(() => {}),
+      getCommunityFood(id).then(setFood).catch(() => {}),
+      getCommunityMusic(id).then(setMusic).catch(() => {}),
+      getCommunityHeritage(id).then(setHeritage).catch(() => {}),
+      getCommunityTimeline(id).then(setTimeline).catch(() => {}),
+      getCommunityDialects(id).then(setDialects).catch(() => {}),
+      getArchive({ community: id, limit: 6 }).then((r) => setArchiveItems(r.items)).catch(() => {}),
+      getCommunityCourses(id).then(setCourses).catch(() => {}),
+    ]);
   }, [id]);
 
   if (!community) {
@@ -81,7 +112,7 @@ export default function CommunityDetailPage() {
 
   const speakers = overviewData?.speakers ?? community.speakers;
   const learners = Math.round(speakers * 0.18);
-  const lessons = 48;
+  const lessons = courses.reduce((sum, c) => sum + (c.units?.length ?? 0), 0) || 48;
   const contributors = Math.round(speakers * 0.03);
 
   const tabs: { id: Tab; label: string }[] = [
@@ -235,6 +266,71 @@ export default function CommunityDetailPage() {
               </div>
             </div>
 
+            {/* Festivals section */}
+            {festivals.length > 0 && (
+              <div>
+                <h3 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">Festivals</h3>
+                <div className="flex gap-4 overflow-x-auto pb-2">
+                  {festivals.map((f) => (
+                    <div
+                      key={f.id}
+                      className="min-w-[200px] flex-shrink-0 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"
+                    >
+                      <p className="font-semibold text-[var(--text-primary)] text-sm mb-1">{f.name}</p>
+                      <p className="text-xs text-[var(--text-muted)] line-clamp-3">{f.description}</p>
+                      {f.month && (
+                        <p className="mt-2 text-xs text-[var(--brand-primary)] font-medium">
+                          Month {f.month}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Food section */}
+            {food.length > 0 && (
+              <div>
+                <h3 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">Traditional Food</h3>
+                <div className="flex gap-4 overflow-x-auto pb-2">
+                  {food.map((f) => (
+                    <div
+                      key={f.id}
+                      className="min-w-[200px] flex-shrink-0 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"
+                    >
+                      <p className="font-semibold text-[var(--text-primary)] text-sm mb-1">{f.name}</p>
+                      {f.native_name && (
+                        <p className="text-xs text-[var(--brand-primary)] mb-1">{f.native_name}</p>
+                      )}
+                      <p className="text-xs text-[var(--text-muted)] line-clamp-3">{f.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Music section */}
+            {music.length > 0 && (
+              <div>
+                <h3 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">Music & Arts</h3>
+                <div className="flex gap-4 overflow-x-auto pb-2">
+                  {music.map((m) => (
+                    <div
+                      key={m.id}
+                      className="min-w-[200px] flex-shrink-0 rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4"
+                    >
+                      <p className="font-semibold text-[var(--text-primary)] text-sm mb-1">{m.title}</p>
+                      {m.instrument && (
+                        <p className="text-xs text-[var(--brand-primary)] mb-1">{m.instrument}</p>
+                      )}
+                      <p className="text-xs text-[var(--text-muted)] line-clamp-3">{m.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Learning path cards */}
             <div>
               <h3 className="mb-4 text-lg font-semibold text-[var(--text-primary)]">
@@ -295,44 +391,53 @@ export default function CommunityDetailPage() {
             transition={{ duration: 0.3 }}
             className="space-y-4"
           >
-            {UNIT_CARDS.map((unit) => (
-              <div
-                key={unit.unit}
-                className={cn(
-                  "rounded-2xl border p-5 transition-all",
-                  unit.locked
-                    ? "border-[var(--border)] bg-[var(--surface)] opacity-60"
-                    : "border-[var(--border)] bg-[var(--surface)] hover:shadow-md"
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white"
-                      style={{ backgroundColor: community.colors.primary }}
-                    >
-                      {unit.unit}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-[var(--text-primary)]">{unit.title}</p>
-                      <p className="text-xs text-[var(--text-muted)]">{unit.subtitle}</p>
-                    </div>
-                  </div>
-                  {unit.locked ? (
-                    <Lock className="h-4 w-4 text-[var(--text-muted)]" />
-                  ) : unit.progress === 100 ? (
-                    <Badge variant="success">Complete</Badge>
-                  ) : (
-                    <Badge variant="info">{unit.progress}%</Badge>
-                  )}
-                </div>
-                {!unit.locked && (
-                  <div className="mt-3">
-                    <Progress value={unit.progress} size="sm" color="brand" />
-                  </div>
-                )}
+            {courses.length === 0 ? (
+              <div className="py-16 text-center text-[var(--text-muted)]">
+                <BookOpen className="mx-auto mb-3 h-10 w-10 opacity-40" />
+                <p>No courses yet for this community.</p>
               </div>
-            ))}
+            ) : (
+              courses.map((course) => (
+                <div key={course.id} className="space-y-3">
+                  <h3 className="text-base font-semibold text-[var(--text-primary)]">{course.title}</h3>
+                  {(course.units ?? []).map((unit, idx) => (
+                    <div
+                      key={unit.id}
+                      className={cn(
+                        "rounded-2xl border p-5 transition-all",
+                        unit.is_locked
+                          ? "border-[var(--border)] bg-[var(--surface)] opacity-60"
+                          : "border-[var(--border)] bg-[var(--surface)] hover:shadow-md"
+                      )}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white"
+                            style={{ backgroundColor: community.colors.primary }}
+                          >
+                            {idx + 1}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-[var(--text-primary)]">{unit.title}</p>
+                            {unit.subtitle && (
+                              <p className="text-xs text-[var(--text-muted)]">{unit.subtitle}</p>
+                            )}
+                          </div>
+                        </div>
+                        {unit.is_locked ? (
+                          <Lock className="h-4 w-4 text-[var(--text-muted)]" />
+                        ) : unit.completed ? (
+                          <Badge variant="success">Complete</Badge>
+                        ) : (
+                          <Badge variant="info">In Progress</Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))
+            )}
             <Link href={`/learn/${community.id}`}>
               <Button className="mt-2 w-full" size="lg">
                 Continue Learning
@@ -346,15 +451,39 @@ export default function CommunityDetailPage() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="flex flex-col items-center justify-center py-20 text-center"
           >
-            <span className="mb-4 text-5xl">📦</span>
-            <h3 className="text-xl font-semibold text-[var(--text-primary)]">
-              Archive items coming soon
-            </h3>
-            <p className="mt-2 max-w-sm text-sm text-[var(--text-muted)]">
-              Cultural audio, stories, and scripts for the {community.name} community will be available here.
-            </p>
+            {archiveItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <span className="mb-4 text-5xl">📦</span>
+                <h3 className="text-xl font-semibold text-[var(--text-primary)]">
+                  Archive items coming soon
+                </h3>
+                <p className="mt-2 max-w-sm text-sm text-[var(--text-muted)]">
+                  Cultural audio, stories, and scripts for the {community.name} community will be available here.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                {archiveItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-4 hover:shadow-md transition-all"
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant="ghost" size="sm">{item.type}</Badge>
+                      {item.is_featured && <Badge variant="info" size="sm">Featured</Badge>}
+                    </div>
+                    <p className="font-semibold text-[var(--text-primary)] text-sm mb-1 line-clamp-2">{item.title}</p>
+                    <p className="text-xs text-[var(--text-muted)] line-clamp-2 mb-2">{item.description}</p>
+                    {(item.contributor_name || item.contributor) && (
+                      <p className="text-xs text-[var(--text-muted)]">
+                        By {item.contributor_name ?? item.contributor}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -410,6 +539,55 @@ export default function CommunityDetailPage() {
                 </p>
               </div>
             </div>
+
+            {/* Dialects */}
+            {dialects.length > 0 && (
+              <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface)] p-5">
+                <h4 className="mb-3 font-semibold text-[var(--text-primary)]">Dialects</h4>
+                <div className="space-y-3">
+                  {dialects.map((d) => (
+                    <div key={d.id} className="border-l-2 border-[var(--brand-primary)]/40 pl-3">
+                      <p className="font-medium text-sm text-[var(--text-primary)]">{d.name}</p>
+                      {d.region && <p className="text-xs text-[var(--text-muted)]">{d.region}</p>}
+                      {d.description && <p className="text-xs text-[var(--text-secondary)] mt-1">{d.description}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Heritage */}
+            {heritage.length > 0 && (
+              <div>
+                <h4 className="mb-3 font-semibold text-[var(--text-primary)]">Heritage</h4>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {heritage.map((h) => (
+                    <div key={h.id} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+                      <p className="font-medium text-sm text-[var(--text-primary)] mb-1">{h.title}</p>
+                      {h.category && <Badge variant="ghost" size="sm" className="mb-2">{h.category}</Badge>}
+                      <p className="text-xs text-[var(--text-muted)]">{h.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Timeline */}
+            {timeline.length > 0 && (
+              <div>
+                <h4 className="mb-3 font-semibold text-[var(--text-primary)]">Historical Timeline</h4>
+                <div className="relative space-y-4 pl-6 before:absolute before:left-2 before:top-1 before:h-full before:w-0.5 before:bg-[var(--border)]">
+                  {timeline.map((t) => (
+                    <div key={t.id} className="relative">
+                      <div className="absolute -left-6 top-1 h-2.5 w-2.5 rounded-full border-2 border-[var(--brand-primary)] bg-[var(--background)]" />
+                      <p className="text-xs font-semibold text-[var(--brand-primary)] mb-0.5">{t.year}</p>
+                      <p className="font-medium text-sm text-[var(--text-primary)]">{t.title}</p>
+                      <p className="text-xs text-[var(--text-muted)]">{t.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
       </div>

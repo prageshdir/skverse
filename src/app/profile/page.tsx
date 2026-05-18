@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -17,7 +18,15 @@ import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Progress } from "@/components/ui/Progress";
 import { cn, formatNumber } from "@/lib/utils";
 import { useAuth } from "@/lib/store";
-import { signout } from "@/lib/api";
+import {
+  signout,
+  getMyActivity,
+  getMyBadges,
+  getMyProgress,
+  type ActivityItem,
+  type Badge as BadgeType,
+  type ProgressData,
+} from "@/lib/api";
 import { COMMUNITIES } from "@/lib/communities";
 
 // ─── Static demo data ─────────────────────────────────────────────────────────
@@ -34,21 +43,6 @@ const WEEKLY_XP = [
 
 const MAX_WEEKLY_XP = Math.max(...WEEKLY_XP.map((d) => d.xp));
 
-const ACHIEVEMENTS = [
-  { emoji: "🔥", title: "7-Day Streak", desc: "Learned 7 days in a row", earned: "May 10, 2026", locked: false },
-  { emoji: "📚", title: "First Lesson", desc: "Completed your first lesson", earned: "Apr 28, 2026", locked: false },
-  { emoji: "⭐", title: "1000 XP", desc: "Earned 1,000 XP total", earned: "May 5, 2026", locked: false },
-  { emoji: "🎙️", title: "Voice Master", desc: "Record 10 pronunciation attempts", earned: null, locked: true },
-  { emoji: "🌐", title: "Polyglot", desc: "Learn from 3 communities", earned: null, locked: true },
-  { emoji: "🏆", title: "Top Contributor", desc: "Submit 25 contributions", earned: null, locked: true },
-];
-
-const MY_COMMUNITIES = [
-  { id: "lepcha", progress: 34 },
-  { id: "bhutia", progress: 18 },
-  { id: "limbu", progress: 52 },
-];
-
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
@@ -56,12 +50,24 @@ export default function ProfilePage() {
   const { logout } = useAuth();
   const router = useRouter();
 
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [badges, setBadges] = useState<BadgeType[]>([]);
+  const [progress, setProgress] = useState<ProgressData[]>([]);
+
+  useEffect(() => {
+    getMyActivity().then(setActivity).catch(() => {});
+    getMyBadges().then(setBadges).catch(() => {});
+    getMyProgress().then(setProgress).catch(() => {});
+  }, []);
+
   // Demo values – use real user data when available
   const name = user?.name ?? "Sonam Wangdi";
   const email = user?.email ?? "sonam@example.com";
   const role = user?.role ?? "learner";
   const xp = user?.xp ?? 2840;
   const streak = user?.streak ?? 7;
+
+  const userCommunities = user?.communities ?? [];
 
   const handleLogout = async () => {
     try {
@@ -143,33 +149,84 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        {/* Achievements grid */}
+        {/* Recent Activity feed */}
+        {activity.length > 0 && (
+          <Card>
+            <CardHeader>
+              <h2 className="font-semibold text-[var(--text-primary)]">Recent Activity</h2>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {activity.slice(0, 5).map((a) => (
+                <div key={a.id} className="flex items-center justify-between gap-3 py-1">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-[var(--text-primary)] truncate">{a.description}</p>
+                    <p className="text-xs text-[var(--text-muted)]">{new Date(a.created_at).toLocaleDateString()}</p>
+                  </div>
+                  {a.xp_earned > 0 && (
+                    <span className="text-xs font-semibold text-amber-400 flex items-center gap-1 shrink-0">
+                      <Zap className="w-3 h-3" />+{a.xp_earned}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Achievements / Badges grid */}
         <div>
           <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Achievements</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {ACHIEVEMENTS.map((a, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: i * 0.05 }}
-              >
-                <Card className={cn("p-5", a.locked && "opacity-50")}>
-                  <div className="text-3xl mb-2">{a.locked ? "🔒" : a.emoji}</div>
-                  <h3 className="font-semibold text-[var(--text-primary)] text-sm mb-0.5">{a.title}</h3>
-                  <p className="text-xs text-[var(--text-muted)]">{a.desc}</p>
-                  {!a.locked && a.earned && (
-                    <p className="text-xs text-emerald-400 mt-2">Earned {a.earned}</p>
-                  )}
-                  {a.locked && (
-                    <div className="flex items-center gap-1 mt-2">
-                      <Lock className="w-3 h-3 text-[var(--text-muted)]" />
-                      <span className="text-xs text-[var(--text-muted)]">Locked</span>
-                    </div>
-                  )}
-                </Card>
-              </motion.div>
-            ))}
+            {badges.length > 0
+              ? badges.map((b, i) => (
+                  <motion.div
+                    key={b.id}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: i * 0.05 }}
+                  >
+                    <Card className="p-5">
+                      <div className="text-3xl mb-2">{b.icon}</div>
+                      <h3 className="font-semibold text-[var(--text-primary)] text-sm mb-0.5">{b.name}</h3>
+                      <p className="text-xs text-[var(--text-muted)]">{b.description}</p>
+                      {b.earned_at && (
+                        <p className="text-xs text-emerald-400 mt-2">
+                          Earned {new Date(b.earned_at).toLocaleDateString()}
+                        </p>
+                      )}
+                    </Card>
+                  </motion.div>
+                ))
+              : [
+                  { emoji: "🔥", title: "7-Day Streak", desc: "Learned 7 days in a row", earned: "May 10, 2026", locked: false },
+                  { emoji: "📚", title: "First Lesson", desc: "Completed your first lesson", earned: "Apr 28, 2026", locked: false },
+                  { emoji: "⭐", title: "1000 XP", desc: "Earned 1,000 XP total", earned: "May 5, 2026", locked: false },
+                  { emoji: "🎙️", title: "Voice Master", desc: "Record 10 pronunciation attempts", earned: null, locked: true },
+                  { emoji: "🌐", title: "Polyglot", desc: "Learn from 3 communities", earned: null, locked: true },
+                  { emoji: "🏆", title: "Top Contributor", desc: "Submit 25 contributions", earned: null, locked: true },
+                ].map((a, i) => (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: i * 0.05 }}
+                  >
+                    <Card className={cn("p-5", a.locked && "opacity-50")}>
+                      <div className="text-3xl mb-2">{a.locked ? "🔒" : a.emoji}</div>
+                      <h3 className="font-semibold text-[var(--text-primary)] text-sm mb-0.5">{a.title}</h3>
+                      <p className="text-xs text-[var(--text-muted)]">{a.desc}</p>
+                      {!a.locked && a.earned && (
+                        <p className="text-xs text-emerald-400 mt-2">Earned {a.earned}</p>
+                      )}
+                      {a.locked && (
+                        <div className="flex items-center gap-1 mt-2">
+                          <Lock className="w-3 h-3 text-[var(--text-muted)]" />
+                          <span className="text-xs text-[var(--text-muted)]">Locked</span>
+                        </div>
+                      )}
+                    </Card>
+                  </motion.div>
+                ))}
           </div>
         </div>
 
@@ -180,28 +237,38 @@ export default function ProfilePage() {
               <h2 className="font-semibold text-[var(--text-primary)]">My Communities</h2>
             </CardHeader>
             <CardContent className="space-y-4">
-              {MY_COMMUNITIES.map(({ id, progress }) => {
-                const c = COMMUNITIES.find((x) => x.id === id);
-                if (!c) return null;
-                return (
-                  <div
-                    key={id}
-                    className="rounded-xl overflow-hidden border border-[var(--border)]"
-                  >
-                    <div className="h-16 flex items-center gap-3 px-4" style={{ background: c.gradient }}>
-                      <span className="text-2xl">{c.emoji}</span>
-                      <p className="font-semibold text-white">{c.name}</p>
-                    </div>
-                    <div className="px-4 py-3 bg-[var(--surface-raised)]">
-                      <div className="flex justify-between text-xs text-[var(--text-muted)] mb-1.5">
-                        <span>Progress</span>
-                        <span>{progress}%</span>
+              {userCommunities.length === 0 ? (
+                <p className="text-sm text-[var(--text-muted)] text-center py-4">
+                  You haven&apos;t joined any communities yet.
+                </p>
+              ) : (
+                userCommunities.map((id) => {
+                  const c = COMMUNITIES.find((x) => x.id === id);
+                  if (!c) return null;
+                  const prog = progress.find((p) => p.community_slug === id);
+                  const progressPct = prog
+                    ? Math.round((prog.completed_units / Math.max(prog.total_units, 1)) * 100)
+                    : 0;
+                  return (
+                    <div
+                      key={id}
+                      className="rounded-xl overflow-hidden border border-[var(--border)]"
+                    >
+                      <div className="h-16 flex items-center gap-3 px-4" style={{ background: c.gradient }}>
+                        <span className="text-2xl">{c.emoji}</span>
+                        <p className="font-semibold text-white">{c.name}</p>
                       </div>
-                      <Progress value={progress} size="sm" color="brand" />
+                      <div className="px-4 py-3 bg-[var(--surface-raised)]">
+                        <div className="flex justify-between text-xs text-[var(--text-muted)] mb-1.5">
+                          <span>Progress</span>
+                          <span>{progressPct}%</span>
+                        </div>
+                        <Progress value={progressPct} size="sm" color="brand" />
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </CardContent>
           </Card>
 
@@ -211,22 +278,30 @@ export default function ProfilePage() {
               <h2 className="font-semibold text-[var(--text-primary)]">Learning Progress</h2>
             </CardHeader>
             <CardContent className="space-y-4">
-              {MY_COMMUNITIES.map(({ id, progress }) => {
-                const c = COMMUNITIES.find((x) => x.id === id);
-                if (!c) return null;
-                return (
-                  <div key={id}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <div className="flex items-center gap-2">
-                        <span>{c.emoji}</span>
-                        <span className="text-sm font-medium text-[var(--text-primary)]">{c.name}</span>
+              {userCommunities.length === 0 ? (
+                <p className="text-sm text-[var(--text-muted)] text-center py-4">No progress yet.</p>
+              ) : (
+                userCommunities.map((id) => {
+                  const c = COMMUNITIES.find((x) => x.id === id);
+                  if (!c) return null;
+                  const prog = progress.find((p) => p.community_slug === id);
+                  const progressPct = prog
+                    ? Math.round((prog.completed_units / Math.max(prog.total_units, 1)) * 100)
+                    : 0;
+                  return (
+                    <div key={id}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2">
+                          <span>{c.emoji}</span>
+                          <span className="text-sm font-medium text-[var(--text-primary)]">{c.name}</span>
+                        </div>
+                        <span className="text-xs text-[var(--text-muted)]">{progressPct}% complete</span>
                       </div>
-                      <span className="text-xs text-[var(--text-muted)]">{progress}% complete</span>
+                      <Progress value={progressPct} size="sm" color="brand" />
                     </div>
-                    <Progress value={progress} size="sm" color="brand" />
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </CardContent>
           </Card>
         </div>

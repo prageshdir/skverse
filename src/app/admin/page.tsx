@@ -31,6 +31,8 @@ import {
   getAdminLearningSeries,
   approveContribution,
   rejectContribution,
+  getPendingContributions,
+  type Contribution,
 } from "@/lib/api";
 
 // ─── Static fallback data ─────────────────────────────────────────────────────
@@ -104,7 +106,8 @@ export default function AdminPage() {
   const [tab, setTab] = useState<TabId>("overview");
   const [kpis, setKpis] = useState(FALLBACK_KPIS);
   const [series, setSeries] = useState(FALLBACK_SERIES);
-  const [pendingItems, setPendingItems] = useState(PENDING_ITEMS);
+  const [pendingItems, setPendingItems] = useState<Contribution[]>([]);
+  const [pendingLoaded, setPendingLoaded] = useState(false);
   const [approving, setApproving] = useState<string | null>(null);
   const [rejecting, setRejecting] = useState<string | null>(null);
 
@@ -117,6 +120,14 @@ export default function AdminPage() {
         if (data?.length) setSeries(data.map((d, i) => ({ ...FALLBACK_SERIES[i] ?? {}, ...d })));
       })
       .catch(() => {});
+    getPendingContributions()
+      .then((data) => {
+        setPendingItems(data);
+        setPendingLoaded(true);
+      })
+      .catch(() => {
+        setPendingLoaded(true);
+      });
   }, []);
 
   const handleApprove = async (id: string) => {
@@ -296,8 +307,15 @@ export default function AdminPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  {pendingItems.length === 0 && (
-                    <p className="text-sm text-[var(--text-muted)] text-center py-4">All contributions reviewed!</p>
+                  {pendingLoaded && pendingItems.length === 0 && (
+                    <p className="text-sm text-[var(--text-muted)] text-center py-4">No pending contributions.</p>
+                  )}
+                  {!pendingLoaded && (
+                    <div className="space-y-2">
+                      {[1, 2].map((i) => (
+                        <div key={i} className="h-16 rounded-xl bg-[var(--surface-raised)] animate-pulse" />
+                      ))}
+                    </div>
                   )}
                   {pendingItems.map((item) => (
                     <div
@@ -307,7 +325,9 @@ export default function AdminPage() {
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <div>
                           <p className="text-sm font-medium text-[var(--text-primary)]">{item.title}</p>
-                          <p className="text-xs text-[var(--text-muted)]">{item.contributor} · {item.date}</p>
+                          <p className="text-xs text-[var(--text-muted)]">
+                            {item.community_slug} · {new Date(item.created_at).toLocaleDateString()}
+                          </p>
                         </div>
                         <Badge variant="ghost" size="sm">{item.type}</Badge>
                       </div>
@@ -409,22 +429,27 @@ export default function AdminPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {[
-                        ...PENDING_ITEMS.map((p) => ({ ...p, status: "pending", community: "Lepcha" })),
-                        { id: "c5", title: "Bhutia Prayer Chants", type: "audio", contributor: "Tashi W.", status: "approved", community: "Bhutia", date: "May 13" },
-                        { id: "c6", title: "Limbu Harvest Song", type: "audio", contributor: "Bimal L.", status: "approved", community: "Limbu", date: "May 12" },
-                      ].map((item) => (
+                      {pendingItems.length === 0 && pendingLoaded ? (
+                        <tr>
+                          <td colSpan={7} className="px-5 py-8 text-center text-sm text-[var(--text-muted)]">
+                            No pending contributions.
+                          </td>
+                        </tr>
+                      ) : null}
+                      {pendingItems.map((item) => (
                         <tr key={item.id} className="border-b border-[var(--border)] last:border-0 hover:bg-[var(--surface-raised)] transition-colors">
                           <td className="px-5 py-3.5 font-medium text-[var(--text-primary)] max-w-[180px] truncate">{item.title}</td>
                           <td className="px-5 py-3.5"><Badge variant="ghost" size="sm">{item.type}</Badge></td>
-                          <td className="px-5 py-3.5 text-[var(--text-secondary)]">{item.contributor}</td>
-                          <td className="px-5 py-3.5 text-[var(--text-secondary)]">{item.community}</td>
+                          <td className="px-5 py-3.5 text-[var(--text-secondary)]">{item.contributor_id}</td>
+                          <td className="px-5 py-3.5 text-[var(--text-secondary)]">{item.community_slug}</td>
                           <td className="px-5 py-3.5">
                             {item.status === "approved"
                               ? <Badge variant="success">Approved</Badge>
+                              : item.status === "rejected"
+                              ? <Badge variant="error">Rejected</Badge>
                               : <Badge variant="warning">Pending</Badge>}
                           </td>
-                          <td className="px-5 py-3.5 text-[var(--text-muted)]">{item.date}</td>
+                          <td className="px-5 py-3.5 text-[var(--text-muted)]">{new Date(item.created_at).toLocaleDateString()}</td>
                           <td className="px-5 py-3.5">
                             {item.status === "pending" && (
                               <div className="flex gap-1">
