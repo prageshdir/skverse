@@ -693,6 +693,13 @@ export default function HomePage() {
     <div className="min-h-screen bg-[var(--background)]">
       <div className="max-w-2xl mx-auto px-4 pt-8 pb-28 space-y-8">
 
+        {/* ── Role badge ───────────────────────────────────────────────── */}
+        <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-sm font-medium text-amber-500">
+          <span>Logged in as:</span>
+          <span className="font-bold uppercase tracking-wide">{role}</span>
+          {user && <span className="ml-auto text-xs text-[var(--text-muted)]">{user.email}</span>}
+        </div>
+
         {/* ── Greeting header ──────────────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, y: -8 }}
