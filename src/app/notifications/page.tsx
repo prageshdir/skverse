@@ -14,8 +14,9 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { cn, timeAgo } from "@/lib/utils";
-import { getNotifications, markAllNotificationsRead } from "@/lib/api";
+import { getNotifications, markAllNotificationsRead, markNotificationRead } from "@/lib/api";
 import type { Notification } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 // ─── Static fallback ──────────────────────────────────────────────────────────
 
@@ -90,9 +91,24 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     getNotifications()
-      .then((data) => setNotifications(data))
+      .then((data) => setNotifications(data.length > 0 ? data : STATIC_NOTIFICATIONS))
       .catch(() => setNotifications(STATIC_NOTIFICATIONS))
       .finally(() => setLoading(false));
+
+    // Real-time: prepend new notifications instantly
+    const channel = supabase
+      .channel("realtime:notifications")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications" },
+        (payload) => {
+          const n = payload.new as Notification;
+          setNotifications((prev) => [n, ...prev]);
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -113,6 +129,7 @@ export default function NotificationsPage() {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+    markNotificationRead(id).catch(() => {});
   };
 
   return (

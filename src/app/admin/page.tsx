@@ -34,6 +34,7 @@ import {
   getPendingContributions,
   type Contribution,
 } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 
 // ─── Static fallback data ─────────────────────────────────────────────────────
 
@@ -128,6 +129,31 @@ export default function AdminPage() {
       .catch(() => {
         setPendingLoaded(true);
       });
+
+    // Real-time: show new contributions instantly, remove approved/rejected
+    const channel = supabase
+      .channel("realtime:contributions")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "contributions", filter: "status=eq.pending" },
+        (payload) => {
+          const c = payload.new as Contribution;
+          setPendingItems((prev) => [c, ...prev]);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "contributions" },
+        (payload) => {
+          const c = payload.new as Contribution;
+          if (c.status !== "pending") {
+            setPendingItems((prev) => prev.filter((p) => p.id !== c.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const handleApprove = async (id: string) => {
@@ -135,6 +161,8 @@ export default function AdminPage() {
     try {
       await approveContribution(id);
       setPendingItems((prev) => prev.filter((p) => p.id !== id));
+      // Refresh KPIs after action
+      getAdminKPIs().then((data) => setKpis((k) => ({ ...k, ...data }))).catch(() => {});
     } catch {
       /* ignore */
     } finally {
@@ -147,6 +175,7 @@ export default function AdminPage() {
     try {
       await rejectContribution(id, "Does not meet quality standards");
       setPendingItems((prev) => prev.filter((p) => p.id !== id));
+      getAdminKPIs().then((data) => setKpis((k) => ({ ...k, ...data }))).catch(() => {});
     } catch {
       /* ignore */
     } finally {

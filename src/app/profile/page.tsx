@@ -27,6 +27,7 @@ import {
   type Badge as BadgeType,
   type ProgressData,
 } from "@/lib/api";
+import { supabase } from "@/lib/supabase";
 import { COMMUNITIES } from "@/lib/communities";
 
 // ─── Static demo data ─────────────────────────────────────────────────────────
@@ -58,6 +59,21 @@ export default function ProfilePage() {
     getMyActivity().then(setActivity).catch(() => {});
     getMyBadges().then(setBadges).catch(() => {});
     getMyProgress().then(setProgress).catch(() => {});
+
+    // Real-time: prepend new activity items as they happen
+    const channel = supabase
+      .channel("realtime:activity_log")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "activity_log" },
+        (payload) => {
+          const item = payload.new as ActivityItem;
+          setActivity((prev) => [item, ...prev].slice(0, 20));
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   // Demo values – use real user data when available

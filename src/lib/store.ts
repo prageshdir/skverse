@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "./supabase";
 import type { User } from "@supabase/supabase-js";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 export interface AppUser {
   id: string;
@@ -43,6 +44,34 @@ async function loadProfile(supaUser: User) {
 }
 
 let _bootstrapped = false;
+let _realtimeChannel: RealtimeChannel | null = null;
+
+function subscribeProfileRealtime(userId: string) {
+  if (_realtimeChannel) {
+    supabase.removeChannel(_realtimeChannel);
+  }
+  _realtimeChannel = supabase
+    .channel(`profile:${userId}`)
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "profiles", filter: `id=eq.${userId}` },
+      (payload) => {
+        if (_user && payload.new) {
+          const p = payload.new as Record<string, unknown>;
+          _user = {
+            ..._user,
+            xp: (p.xp as number) ?? _user.xp,
+            streak: (p.streak as number) ?? _user.streak,
+            name: (p.name as string) ?? _user.name,
+            avatar_url: (p.avatar_url as string | undefined) ?? _user.avatar_url,
+            communities: (p.communities as string[]) ?? _user.communities,
+          };
+          notify();
+        }
+      }
+    )
+    .subscribe();
+}
 
 async function bootstrap() {
   if (_bootstrapped) return;
@@ -51,6 +80,7 @@ async function bootstrap() {
   const { data: { session } } = await supabase.auth.getSession();
   if (session?.user) {
     await loadProfile(session.user);
+    subscribeProfileRealtime(session.user.id);
   }
   _loading = false;
   notify();
@@ -58,8 +88,13 @@ async function bootstrap() {
   supabase.auth.onAuthStateChange(async (_event, session) => {
     if (session?.user) {
       await loadProfile(session.user);
+      subscribeProfileRealtime(session.user.id);
     } else {
       _user = null;
+      if (_realtimeChannel) {
+        supabase.removeChannel(_realtimeChannel);
+        _realtimeChannel = null;
+      }
     }
     _loading = false;
     notify();
