@@ -30,18 +30,16 @@ async function loadProfile(supaUser: User) {
     .eq("id", supaUser.id)
     .single();
 
-  if (data) {
-    _user = {
-      id: data.id,
-      email: data.email,
-      name: data.name,
-      avatar_url: data.avatar_url,
-      role: data.role,
-      xp: data.xp ?? 0,
-      streak: data.streak ?? 0,
-      communities: data.communities ?? [],
-    };
-  }
+  _user = {
+    id: supaUser.id,
+    email: data?.email ?? supaUser.email ?? "",
+    name: data?.name ?? supaUser.user_metadata?.name ?? supaUser.email?.split("@")[0] ?? "User",
+    avatar_url: data?.avatar_url ?? supaUser.user_metadata?.avatar_url,
+    role: data?.role ?? "learner",
+    xp: data?.xp ?? 0,
+    streak: data?.streak ?? 0,
+    communities: data?.communities ?? [],
+  };
 }
 
 let _bootstrapped = false;

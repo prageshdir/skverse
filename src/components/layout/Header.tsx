@@ -1,10 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { useAuth } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 export function Header() {
+  const { user, isAuthenticated, logout } = useAuth();
+  const router = useRouter();
+
+  function handleLogout() {
+    logout();
+    router.push("/");
+  }
+
   return (
     <header
       className={cn(
@@ -16,7 +26,7 @@ export function Header() {
     >
       {/* Logo */}
       <Link
-        href="/"
+        href={isAuthenticated ? "/home" : "/"}
         className="flex items-center gap-2.5 group"
         aria-label="SikkimVerse home"
       >
@@ -34,7 +44,7 @@ export function Header() {
         </span>
       </Link>
 
-      {/* Right side controls */}
+      {/* Right side */}
       <div className="flex items-center gap-3">
         <nav className="hidden md:flex items-center gap-1" aria-label="Primary navigation">
           <Link
@@ -47,28 +57,75 @@ export function Header() {
           >
             Communities
           </Link>
+          {isAuthenticated && (
+            <>
+              <Link
+                href="/home"
+                className={cn(
+                  "px-3 py-1.5 text-sm font-medium rounded-lg",
+                  "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
+                  "hover:bg-[var(--surface-raised)] transition-colors duration-150"
+                )}
+              >
+                Dashboard
+              </Link>
+              <Link
+                href="/learn/lepcha"
+                className={cn(
+                  "px-3 py-1.5 text-sm font-medium rounded-lg",
+                  "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
+                  "hover:bg-[var(--surface-raised)] transition-colors duration-150"
+                )}
+              >
+                Learn
+              </Link>
+            </>
+          )}
+        </nav>
+
+        <ThemeToggle />
+
+        {isAuthenticated ? (
+          <div className="flex items-center gap-2">
+            <Link
+              href="/profile"
+              className={cn(
+                "hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium",
+                "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
+                "hover:bg-[var(--surface-raised)] transition-colors"
+              )}
+            >
+              <span className={cn(
+                "flex items-center justify-center h-6 w-6 rounded-full text-xs font-bold",
+                "gradient-brand text-white"
+              )}>
+                {user?.name?.[0]?.toUpperCase() ?? "U"}
+              </span>
+              <span>{user?.name?.split(" ")[0]}</span>
+            </Link>
+            <button
+              onClick={handleLogout}
+              className={cn(
+                "hidden md:inline-flex px-3 py-1.5 text-sm font-medium rounded-lg",
+                "text-[var(--text-muted)] hover:text-[var(--error)]",
+                "hover:bg-[var(--surface-raised)] transition-colors"
+              )}
+            >
+              Sign out
+            </button>
+          </div>
+        ) : (
           <Link
-            href="/learn/lepcha"
+            href="/auth?mode=signup"
             className={cn(
-              "px-3 py-1.5 text-sm font-medium rounded-lg",
-              "text-[var(--text-secondary)] hover:text-[var(--text-primary)]",
-              "hover:bg-[var(--surface-raised)] transition-colors duration-150"
+              "hidden md:inline-flex items-center px-4 py-2 text-sm font-semibold rounded-lg",
+              "gradient-brand text-white",
+              "hover:opacity-90 transition-opacity duration-150"
             )}
           >
-            Learn
+            Get Started
           </Link>
-        </nav>
-        <ThemeToggle />
-        <Link
-          href="/auth?mode=signup"
-          className={cn(
-            "hidden md:inline-flex items-center px-4 py-2 text-sm font-semibold rounded-lg",
-            "gradient-brand text-white",
-            "hover:opacity-90 transition-opacity duration-150"
-          )}
-        >
-          Get Started
-        </Link>
+        )}
       </div>
     </header>
   );
