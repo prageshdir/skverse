@@ -431,7 +431,7 @@ function RoleSection({ role, communities }: { role: string; communities: string[
         {/* Action links */}
         <div className="space-y-2">
           <Link
-            href={communitySlug ? `/admin/community/${communitySlug}?tab=approvals` : "/admin"}
+            href="/admin"
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-xl",
               "bg-[var(--surface-raised)] border border-[var(--border)]",
@@ -443,7 +443,7 @@ function RoleSection({ role, communities }: { role: string; communities: string[
             <ChevronRight className="h-4 w-4 text-[var(--text-muted)] ml-auto" />
           </Link>
           <Link
-            href={communitySlug ? `/admin/community/${communitySlug}` : "/admin"}
+            href="/admin"
             className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-xl",
               "bg-[var(--surface-raised)] border border-[var(--border)]",
@@ -456,7 +456,7 @@ function RoleSection({ role, communities }: { role: string; communities: string[
           </Link>
           {showTeamAndStats && (
             <Link
-              href={communitySlug ? `/admin/community/${communitySlug}?tab=team` : "/admin"}
+              href="/admin"
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl",
                 "bg-[var(--surface-raised)] border border-[var(--border)]",
